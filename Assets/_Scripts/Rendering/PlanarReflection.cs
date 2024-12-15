@@ -2,30 +2,59 @@
 {
     using UnityEngine;
 
-    [ExecuteAlways]
     public class PlanarReflection : MonoBehaviour
     {
         // referenses
+        [Tooltip("Main camera, generally can just replace it with Camera.main on start")]
         public Camera mainCamera;
+        [Tooltip("Reflection render camera, can also just create the camera at runtime")]
         public Camera reflectionCamera;
+
+        [Tooltip("The referense plane from which camera will reflect")]
         public Transform reflectionPlane;
-        public RenderTexture outputTexture;
+        [Tooltip("Set your materials that need a planar reflection here")]
+        public Material[] reflectiveMaterials;
 
         // parameters
-        public bool copyCameraParamerers;
+        [Tooltip("Additional vertical camera offset in case needed")]
         public float verticalOffset;
-        private bool isReady;
+        [Tooltip("Copy parameters from the main camera")]
+        public bool isCopyParameters;
 
         // cache
         private Transform mainCamTransform;
         private Transform reflectionCamTransform;
+        private RenderTexture reflectionTexture;
 
 
+
+        private void OnEnable() 
+        {
+            reflectionTexture = new RenderTexture(Screen.width, Screen.height, 24);
+
+            reflectionCamera.targetTexture = reflectionTexture;
+            mainCamTransform = mainCamera.transform;
+            reflectionCamTransform = reflectionCamera.transform;
+
+            if (isCopyParameters) 
+            {
+                reflectionCamera.CopyFrom(mainCamera);
+            }
+
+            foreach (var mat in reflectiveMaterials) 
+            {
+                mat.SetTexture("_ReflectionTex", reflectionTexture);
+            }
+        }
+
+        private void OnDisable() 
+        {
+            reflectionTexture = null;
+        }
 
         private void Update()
         {
-            if (isReady)
-                RenderReflection();
+            RenderReflection();
         }
 
         private void RenderReflection()
@@ -55,33 +84,8 @@
             // apply direction and position to reflection camera
             reflectionCamTransform.position = cameraPositionWorldSpace;
             reflectionCamTransform.LookAt(cameraPositionWorldSpace + cameraDirectionWorldSpace, cameraUpWorldSpace);
-        }
 
-        private void OnValidate()
-        {
-            if (mainCamera != null)
-            {
-                mainCamTransform = mainCamera.transform;
-                isReady = true;
-            }
-            else
-                isReady = false;
-
-            if (reflectionCamera != null)
-            {
-                reflectionCamTransform = reflectionCamera.transform;
-                isReady = true;
-            }
-            else
-                isReady = false;
-
-            if(isReady && copyCameraParamerers)
-            {
-                copyCameraParamerers = !copyCameraParamerers;
-                reflectionCamera.CopyFrom(mainCamera);
-
-                reflectionCamera.targetTexture = outputTexture;
-            }
+            reflectionCamera.Render();
         }
     }
 }
